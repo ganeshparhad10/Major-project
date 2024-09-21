@@ -1,0 +1,18 @@
+<% include layout %>
+
+<main>
+  <h2>Your Service Bookings</h2>
+  <% services.forEach(service => { %>
+    <div>
+      <h3>Service: <%= service.serviceName %></h3>
+      <p>Booked by: <%= service.user.name %> (<%= service.user.email %>)</p>
+      <p>Status: <%= service.status %></p>
+      <% if (service.status === 'Pending') { %>
+        <form action="/vendor/complete-service" method="POST">
+          <input type="hidden" name="serviceId" value="<%= service._id %>">
+          <button type="submit">Mark as Completed</button>
+        </form>
+      <% } %>
+    </div>
+  <% }) %>
+</main>

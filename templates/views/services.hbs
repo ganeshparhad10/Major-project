@@ -1,0 +1,22 @@
+<% include('layout') %>
+
+<main>
+  <h2>Available Services</h2>
+  <% services.forEach(vendor => { %>
+    <div>
+      <h3>Vendor: <%= vendor.name %></h3>
+      <p>Services: <%= vendor.services.join(', ') %></p>
+      <p>Experience: <%= vendor.experience %> years</p>
+      <p>Contact: <%= vendor.contact %></p>
+      <form action="/book-service" method="POST">
+        <input type="hidden" name="vendorId" value="<%= vendor._id %>">
+        <select name="serviceName">
+          <% vendor.services.forEach(service => { %>
+            <option value="<%= service %>"><%= service %></option>
+          <% }) %>
+        </select>
+        <button type="submit">Book Service</button>
+      </form>
+    </div>
+  <% }) %>
+</main>
