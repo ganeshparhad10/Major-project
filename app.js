@@ -1,29 +1,26 @@
 const express = require('express');
-const session = require('express-session');
-const flash = require('connect-flash');
+const path = require('path');
+const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const connectDB = require('./conn');
+const cookieParser = require('cookie-parser');
+
+const dotenv = require('dotenv');
+dotenv.config();
+
+const SignUp = require('./src/models/signUp');
+
+
+
+const db = require('./db/conn');
+const authRoutes = require('./routes/auth');
+const { authenticate } = require('./middleware/auth');
 const app = express();
-const hbs=require('hbs')
-const path =require ('path')
+const hbs = require('hbs');
 
-// Connect to MongoDB
-connectDB();
-
-// Middleware
+app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
-app.use(session({
-  secret: 'yourSecretKey',
-  resave: false,
-  saveUninitialized: true,
-}));
-app.use(flash());
-app.use((req, res, next) => {
-  res.locals.success = req.flash('success');
-  res.locals.error = req.flash('error');
-  next();
-});
 const static_path = path.join(__dirname, './public');
 const template_path = path.join(__dirname, './templates/views');
 const partial_path = path.join(__dirname, './templates/partials');
@@ -33,14 +30,37 @@ app.set('view engine', 'hbs');
 app.set('views', template_path);
 hbs.registerPartials(partial_path);
 
-// Routes
-app.use('/', require('./routes/auth'));
-app.use('/', require('./routes/services')); // Add services routes
+// Route handlers
+app.use('/auth', authRoutes);
 
-// Add root route
-app.get('/', (req, res) => {
-  res.redirect('/services'); // Redirect to services page or any other default page
+
+
+// Root URL route
+app.get('/',(req, res) => {
+  res.render('index');
 });
 
-// Start the server
-app.listen(3000, () => console.log('Server running on port 3000'));
+app.get('/register', (req, res) => {
+  res.render('register');
+});
+
+app.get('/login', (req, res) => {
+  res.render('login');
+});
+
+
+
+
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+
+
+
+const port = process.env.PORT || 4000;
+app.listen(port, () => {
+  console.log(`Server is running at port no ${port}`);
+});

@@ -1,63 +1,68 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const User = require('../models/user');
-const Vendor = require('../models/vendor');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+const SignUp = require('../src/models/signUp');
+
+
 const router = express.Router();
+router.use(cookieParser());
+router.use(express.json());
 
-// User Registration
-router.get('/register', (req, res) => res.render('register'));
-router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
-  let user = await User.findOne({ email });
-  if (user) {
-    req.flash('error', 'User already exists');
-    return res.redirect('/register');
+router.post('/register', async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+    const newUser = new SignUp({ name, email, password });
+    await newUser.save();
+    res.redirect('/login');
+  } catch (error) {
+    next(error);
   }
-  user = new User({ name, email, password: await bcrypt.hash(password, 10) });
-  await user.save();
-  req.flash('success', 'Registration successful');
-  res.redirect('/login');
 });
 
-// User Login
-router.get('/login', (req, res) => res.render('login'));
-router.post('/login', async (req, res) => {
+router.post('/login', (req, res) => {
+  const token = req.cookies.token;
+
+  if (token) {
+    // Verify if the existing token is valid
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+      if (err) {
+        // If the token is invalid or expired, proceed with the login process
+        loginUser(req, res);
+      } else {
+        // If the token is valid, respond with a message that the user is already logged in
+        res.status(200).send('You are already logged in');
+      }
+    });
+  } else {
+    // If there is no token, proceed with the login process
+    loginUser(req, res);
+  }
+});
+
+const loginUser = async(req, res,next) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email });
-  if (!user || !await bcrypt.compare(password, user.password)) {
-    req.flash('error', 'Invalid credentials');
-    return res.redirect('/login');
+  try {
+    const { email, password } = req.body;
+    const user = await SignUp.findOne({ email });
+    if (user && await user.comparePassword(password)) {
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+      res.cookie('token', token, { httpOnly: true });
+      res.redirect('/');
+    } else {
+      res.redirect('/login');
+    }
+  } catch (error) {
+    next(error);
   }
-  req.session.user = user;
-  res.redirect('/');
+};
+
+
+//logout
+
+router.post('/logout', (req, res) => {
+  res.clearCookie('token');
+  res.status(200).send('Logged out successfully');
 });
 
-// Vendor Registration
-router.get('/vendor/register', (req, res) => res.render('vendor_register'));
-router.post('/vendor/register', async (req, res) => {
-  const { name, email, password, services, experience, contact } = req.body;
-  let vendor = await Vendor.findOne({ email });
-  if (vendor) {
-    req.flash('error', 'Vendor already exists');
-    return res.redirect('/vendor/register');
-  }
-  vendor = new Vendor({ name, email, password: await bcrypt.hash(password, 10), services, experience, contact });
-  await vendor.save();
-  req.flash('success', 'Vendor registration successful');
-  res.redirect('/vendor/login');
-});
-
-// Vendor Login
-router.get('/vendor/login', (req, res) => res.render('vendor_login'));
-router.post('/vendor/login', async (req, res) => {
-  const { email, password } = req.body;
-  const vendor = await Vendor.findOne({ email });
-  if (!vendor || !await bcrypt.compare(password, vendor.password)) {
-    req.flash('error', 'Invalid credentials');
-    return res.redirect('/vendor/login');
-  }
-  req.session.vendor = vendor;
-  res.redirect('/vendor/dashboard');
-});
 
 module.exports = router;
